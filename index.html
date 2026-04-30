@@ -1167,6 +1167,42 @@ function initApp(){
   if(!state.empresas || !state.empresas.length) seedData();
   setupEvents();
   renderAll();
+  scheduleDesktopNotification();
+}
+
+/* ================== NOTIFICAÇÃO DESKTOP ================== */
+function scheduleDesktopNotification(){
+  if(!('Notification' in window)) return;
+  const hoje = todayISO();
+  const lastKey = 'seconci_notif_last';
+  const last = localStorage.getItem(lastKey);
+  if(last === hoje) return;
+
+  const vencidos = state.docs.filter(d => statusDoc(d).key === 'danger');
+  const vencendo = state.docs.filter(d => statusDoc(d).key === 'warn');
+  const total = vencidos.length + vencendo.length;
+  if(total === 0) return;
+
+  const enviar = () => {
+    localStorage.setItem(lastKey, hoje);
+    const titulo = 'SECONCI · ' + total + ' documento' + (total>1?'s':'') + ' pendente' + (total>1?'s':'');
+    const corpo = [
+      vencidos.length ? vencidos.length + ' vencido' + (vencidos.length>1?'s':'') : '',
+      vencendo.length ? vencendo.length + ' vencendo em breve' : ''
+    ].filter(Boolean).join('\n');
+    const n = new Notification(titulo, {
+      body: corpo,
+      tag: 'seconci-alerta',
+      requireInteraction: true
+    });
+    n.onclick = () => { window.focus(); navigate('documentos'); n.close(); };
+  };
+
+  if(Notification.permission === 'granted'){
+    enviar();
+  } else if(Notification.permission !== 'denied'){
+    Notification.requestPermission().then(function(p){ if(p === 'granted') enviar(); });
+  }
 }
 
 window.addEventListener('load', () => {
